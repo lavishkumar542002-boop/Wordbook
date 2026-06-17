@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Wordbook</title>
+<meta name="description" content="Meaning, synonym, antonym, usage, and Hindi meaning for any word." />
+<meta name="theme-color" content="#11161D" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" type="image/png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Wordbook" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500;1,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+Devanagari:wght@500;600&display=swap');
+
+  :root{
+    --ink:#11161D;
+    --ink-soft:#1B232D;
+    --paper:#F3EEE3;
+    --paper-edge:#E4DBC6;
+    --text-on-paper:#23201A;
+    --muted:#8A93A1;
+    --gold:#C9A24B;
+    --teal:#3E7C74;
+    --rule: rgba(35,32,26,0.16);
+    --danger:#B0584F;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: radial-gradient(circle at 20% -10%, #1c2733 0%, var(--ink) 55%);
+    color: #DCE1E8;
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .app{
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  /* Masthead */
+  .masthead{ text-align:center; margin-bottom: 28px; }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--gold);
+    margin: 0 0 6px;
+    text-transform: uppercase;
+  }
+  .masthead h1{
+    font-family:'Lora', serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: clamp(32px, 6vw, 44px);
+    margin: 0 0 8px;
+    letter-spacing: 0.01em;
+    color: #F3EEE3;
+  }
+  .tagline{
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* Search */
+  .search-row{
+    display:flex;
+    gap: 10px;
+    margin: 28px 0 18px;
+  }
+  #wordInput{
+    flex: 1;
+    background: var(--ink-soft);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family:'Lora', serif;
+    font-size: 18px;
+    color: #F3EEE3;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  #wordInput::placeholder{ color:#5C6675; font-style: italic; }
+  #wordInput:focus{ border-color: var(--gold); }
+  #lookupBtn{
+    background: var(--gold);
+    color: #1B1606;
+    border: none;
+    border-radius: 8px;
+    padding: 0 22px;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor:pointer;
+    transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+  #lookupBtn:hover{ transform: translateY(-1px); }
+  #lookupBtn:disabled{ opacity:0.5; cursor:default; transform:none; }
+
+  #status{
+    min-height: 18px;
+    font-size: 13px;
+    color: var(--danger);
+    margin-bottom: 6px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  /* Layout */
+  .layout{
+    display:grid;
+    grid-template-columns: 1fr 220px;
+    gap: 22px;
+    align-items:start;
+  }
+  @media (max-width: 680px){
+    .layout{ grid-template-columns: 1fr; }
+  }
+
+  /* The "page" */
+  .page{
+    background: var(--paper);
+    color: var(--text-on-paper);
+    border-radius: 6px;
+    padding: 30px 32px;
+    min-height: 220px;
+    box-shadow: 0 18px 40px -16px rgba(0,0,0,0.55), inset 0 0 0 1px var(--paper-edge);
+    position: relative;
+  }
+  .page::before{
+    content:"";
+    position:absolute;
+    left:0; top:14px; bottom:14px;
+    width: 3px;
+    background: linear-gradient(180deg, var(--gold), var(--teal));
+    border-radius: 0 3px 3px 0;
+  }
+
+  .empty-state{
+    font-family:'Lora', serif;
+    font-style: italic;
+    color: #6B6454;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 20px 4px;
+  }
+
+  .skeleton{
+    height: 14px;
+    background: linear-gradient(90deg, var(--paper-edge), #efe7d4, var(--paper-edge));
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 4px;
+    margin: 10px 0;
+  }
+  @keyframes shimmer{ 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+
+  .headword{
+    font-family:'Lora', serif;
+    font-weight: 600;
+    font-style: italic;
+    font-size: 32px;
+    margin: 0 0 4px;
+    text-transform: lowercase;
+  }
+  .pos-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--teal);
+    letter-spacing: 0.08em;
+    margin: 0 0 18px;
+  }
+
+  .field{
+    display:grid;
+    grid-template-columns: 96px 1fr;
+    gap: 14px;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .field:first-of-type{ border-top: 1px solid var(--rule); }
+  .field-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding-top: 2px;
+  }
+  .field-label.hindi-label{ color: var(--teal); }
+  .field-value{
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .field-value.hindi{
+    font-family:'Noto Sans Devanagari', sans-serif;
+    font-size: 17px;
+  }
+  .field-value.example{ font-style: italic; }
+
+  /* History rail */
+  .history-rail h2{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  .history-item{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--ink-soft);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 9px 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .history-item:hover{ border-color: var(--gold); }
+  .history-word{
+    font-family:'Lora', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: #EFE9DC;
+    text-transform: lowercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .history-del{
+    background:none;
+    border:none;
+    color: var(--muted);
+    cursor:pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+  }
+  .history-del:hover{ color: var(--danger); }
+  .history-empty{
+    font-size: 12px;
+    color: #5C6675;
+    font-style: italic;
+  }
+  #clearHistory{
+    background:none;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor:pointer;
+    margin-top: 4px;
+    width: 100%;
+  }
+  #clearHistory:hover{ border-color: var(--danger); color: var(--danger); }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="masthead">
+      <p class="eyebrow">A Pocket Lexicon</p>
+      <h1>Wordbook</h1>
+      <p class="tagline">One word, five readings — meaning, synonym, antonym, usage, and हिन्दी अर्थ.</p>
+    </div>
+
+    <div class="search-row">
+      <input id="wordInput" type="text" placeholder="Type a word…" autocomplete="off" />
+      <button id="lookupBtn">Look up</button>
+    </div>
+    <div id="status"></div>
+
+    <div class="layout">
+      <section id="entryPage" class="page">
+        <div class="empty-state">Enter a word above — its meaning, synonyms, antonyms, an example, and its Hindi meaning will appear here.</div>
+      </section>
+
+      <aside class="history-rail">
+        <h2>Recent</h2>
+        <div id="historyList"></div>
+        <button id="clearHistory">Clear all</button>
+      </aside>
+    </div>
+  </div>
+
+<script>
+const STORAGE_KEY = 'wordbook-history';
+let history = [];
+
+const entryPage = document.getElementById('entryPage');
+const wordInput = document.getElementById('wordInput');
+const lookupBtn = document.getElementById('lookupBtn');
+const statusEl = document.getElementById('status');
+const historyList = document.getElementById('historyList');
+const clearHistoryBtn = document.getElementById('clearHistory');
+
+function escapeHtml(str){
+  return (str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderSkeleton(){
+  entryPage.innerHTML = `
+    <div class="skeleton" style="width:40%; height:28px;"></div>
+    <div class="skeleton" style="width:25%; height:12px; margin-bottom:20px;"></div>
+    <div class="skeleton" style="width:90%;"></div>
+    <div class="skeleton" style="width:75%;"></div>
+    <div class="skeleton" style="width:85%;"></div>
+    <div class="skeleton" style="width:60%;"></div>
+  `;
+}
+
+function renderEntry(data){
+  entryPage.innerHTML = `
+    <p class="headword">${escapeHtml(data.word)}</p>
+    <p class="pos-count">lookup &middot; ${new Date(data.timestamp).toLocaleDateString()}</p>
+    <div class="field">
+      <div class="field-label">Meaning</div>
+      <div class="field-value">${escapeHtml(data.meaning)}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Synonym</div>
+      <div class="field-value">${escapeHtml(data.synonyms)}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Antonym</div>
+      <div class="field-value">${escapeHtml(data.antonyms)}</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Usage</div>
+      <div class="field-value example">${escapeHtml(data.example)}</div>
+    </div>
+    <div class="field">
+      <div class="field-label hindi-label">हिन्दी</div>
+      <div class="field-value hindi">${escapeHtml(data.hindi)}</div>
+    </div>
+  `;
+}
+
+function renderHistory(){
+  if(history.length === 0){
+    historyList.innerHTML = '<p class="history-empty">Nothing looked up yet.</p>';
+    return;
+  }
+  historyList.innerHTML = history.map((item, idx) => `
+    <div class="history-item" data-idx="${idx}">
+      <span class="history-word">${escapeHtml(item.word)}</span>
+      <button class="history-del" data-idx="${idx}" title="Remove">&times;</button>
+    </div>
+  `).join('');
+
+  historyList.querySelectorAll('.history-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if(e.target.classList.contains('history-del')) return;
+      const idx = parseInt(el.dataset.idx, 10);
+      renderEntry(history[idx]);
+    });
+  });
+  historyList.querySelectorAll('.history-del').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      history.splice(idx, 1);
+      renderHistory();
+      await saveHistory();
+    });
+  });
+}
+
+async function loadHistory(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){
+      history = JSON.parse(res.value);
+    }
+  }catch(err){
+    history = [];
+  }
+  renderHistory();
+}
+
+async function saveHistory(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(history), false);
+  }catch(err){
+    console.error('Could not save history', err);
+  }
+}
+
+function extractJson(text){
+  const match = text.match(/\{[\s\S]*\}/);
+  if(!match) throw new Error('No JSON found in response');
+  return JSON.parse(match[0]);
+}
+
+async function lookupWord(rawWord){
+  const word = rawWord.trim();
+  if(!word){ return; }
+  statusEl.textContent = '';
+  lookupBtn.disabled = true;
+  renderSkeleton();
+
+  try{
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 500,
+        system: 'You are a precise bilingual (English-Hindi) dictionary. Given a single English word from the user, respond with ONLY a raw JSON object — no markdown fences, no commentary, no preamble. Use exactly these keys: "meaning" (one clear, concise English definition), "synonyms" (3 comma-separated synonyms), "antonyms" (2-3 comma-separated antonyms, or "No direct antonym" if none exist naturally), "example" (one natural example sentence using the word), "hindi" (the Hindi meaning written in Devanagari script, followed by a Roman transliteration in parentheses, e.g. "सुंदर (sundar)"). If the input is not a single recognizable English word, still return the same JSON shape with each field briefly explaining the issue instead of guessing.',
+        messages: [{ role: 'user', content: word }]
+      })
+    });
+
+    if(!response.ok){
+      throw new Error('Request failed (' + response.status + ')');
+    }
+
+    const data = await response.json();
+    const textBlock = (data.content || []).map(b => b.text || '').join('');
+    const parsed = extractJson(textBlock);
+
+    const entry = {
+      word: word,
+      meaning: parsed.meaning || '—',
+      synonyms: parsed.synonyms || '—',
+      antonyms: parsed.antonyms || '—',
+      example: parsed.example || '—',
+      hindi: parsed.hindi || '—',
+      timestamp: Date.now()
+    };
+
+    renderEntry(entry);
+
+    history = history.filter(h => h.word.toLowerCase() !== word.toLowerCase());
+    history.unshift(entry);
+    history = history.slice(0, 25);
+    renderHistory();
+    await saveHistory();
+
+  }catch(err){
+    statusEl.textContent = 'Could not look that up — try again.';
+    entryPage.innerHTML = '<div class="empty-state">Something went wrong fetching that entry. Try looking it up again.</div>';
+  }finally{
+    lookupBtn.disabled = false;
+  }
+}
+
+lookupBtn.addEventListener('click', () => lookupWord(wordInput.value));
+wordInput.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') lookupWord(wordInput.value);
+});
+clearHistoryBtn.addEventListener('click', async () => {
+  history = [];
+  renderHistory();
+  try{ await window.storage.delete(STORAGE_KEY, false); }catch(err){}
+});
+
+loadHistory();
+wordInput.focus();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {
+      // Silently ignore — fine if unsupported (e.g. previewed inside an iframe)
+    });
+  });
+}
+</script>
+</body>
+</html>
