@@ -44,7 +44,6 @@
     padding: 28px 20px 60px;
   }
 
-  /* Masthead */
   .masthead{ text-align:center; margin-bottom: 28px; }
   .eyebrow{
     font-family:'IBM Plex Mono', monospace;
@@ -70,7 +69,6 @@
     line-height: 1.5;
   }
 
-  /* Search */
   .search-row{
     display:flex;
     gap: 10px;
@@ -115,7 +113,6 @@
     font-family:'IBM Plex Mono', monospace;
   }
 
-  /* Layout */
   .layout{
     display:grid;
     grid-template-columns: 1fr 220px;
@@ -126,7 +123,6 @@
     .layout{ grid-template-columns: 1fr; }
   }
 
-  /* The "page" */
   .page{
     background: var(--paper);
     color: var(--text-on-paper);
@@ -207,7 +203,6 @@
   }
   .field-value.example{ font-style: italic; }
 
-  /* History rail */
   .history-rail h2{
     font-family:'IBM Plex Mono', monospace;
     font-size: 11px;
@@ -402,10 +397,8 @@ async function saveHistory(){
   }
 }
 
-function extractJson(text){
-  const match = text.match(/\{[\s\S]*\}/);
-  if(!match) throw new Error('No JSON found in response');
-  return JSON.parse(match[0]);
+function pickWords(list, max){
+  return Array.from(new Set(list)).slice(0, max).join(', ');
 }
 
 async function lookupWord(rawWord){
@@ -416,32 +409,49 @@ async function lookupWord(rawWord){
   renderSkeleton();
 
   try{
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 500,
-        system: 'You are a precise bilingual (English-Hindi) dictionary. Given a single English word from the user, respond with ONLY a raw JSON object — no markdown fences, no commentary, no preamble. Use exactly these keys: "meaning" (one clear, concise English definition), "synonyms" (3 comma-separated synonyms), "antonyms" (2-3 comma-separated antonyms, or "No direct antonym" if none exist naturally), "example" (one natural example sentence using the word), "hindi" (the Hindi meaning written in Devanagari script, followed by a Roman transliteration in parentheses, e.g. "सुंदर (sundar)"). If the input is not a single recognizable English word, still return the same JSON shape with each field briefly explaining the issue instead of guessing.',
-        messages: [{ role: 'user', content: word }]
-      })
+    const dictRes = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word.toLowerCase()));
+    if(!dictRes.ok){
+      throw new Error('not-found');
+    }
+    const dictData = await dictRes.json();
+    const entryData = dictData[0];
+
+    let meaning = '';
+    let example = '';
+    const synonyms = [];
+    const antonyms = [];
+
+    (entryData.meanings || []).forEach(m => {
+      (m.synonyms || []).forEach(s => synonyms.push(s));
+      (m.antonyms || []).forEach(a => antonyms.push(a));
+      (m.definitions || []).forEach(d => {
+        if(!meaning) meaning = d.definition;
+        (d.synonyms || []).forEach(s => synonyms.push(s));
+        (d.antonyms || []).forEach(a => antonyms.push(a));
+        if(!example && d.example) example = d.example;
+      });
     });
 
-    if(!response.ok){
-      throw new Error('Request failed (' + response.status + ')');
+    if(!example){
+      example = 'Try using "' + word + '" in a sentence of your own — no example was found.';
     }
 
-    const data = await response.json();
-    const textBlock = (data.content || []).map(b => b.text || '').join('');
-    const parsed = extractJson(textBlock);
+    let hindi = 'Translation unavailable';
+    try{
+      const transRes = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(word) + '&langpair=en|hi');
+      const transData = await transRes.json();
+      if(transData && transData.responseData && transData.responseData.translatedText){
+        hindi = transData.responseData.translatedText;
+      }
+    }catch(e){ /* keep fallback text */ }
 
     const entry = {
       word: word,
-      meaning: parsed.meaning || '—',
-      synonyms: parsed.synonyms || '—',
-      antonyms: parsed.antonyms || '—',
-      example: parsed.example || '—',
-      hindi: parsed.hindi || '—',
+      meaning: meaning || 'No definition found.',
+      synonyms: synonyms.length ? pickWords(synonyms, 4) : 'No close synonym listed',
+      antonyms: antonyms.length ? pickWords(antonyms, 4) : 'No direct antonym listed',
+      example: example,
+      hindi: hindi,
       timestamp: Date.now()
     };
 
@@ -454,8 +464,8 @@ async function lookupWord(rawWord){
     await saveHistory();
 
   }catch(err){
-    statusEl.textContent = 'Could not look that up — try again.';
-    entryPage.innerHTML = '<div class="empty-state">Something went wrong fetching that entry. Try looking it up again.</div>';
+    statusEl.textContent = "Couldn't find that word — check the spelling and try again.";
+    entryPage.innerHTML = '<div class="empty-state">No entry found for that word. Double-check the spelling, or try a simpler form of the word (e.g. "run" instead of "running").</div>';
   }finally{
     lookupBtn.disabled = false;
   }
